@@ -45,8 +45,8 @@ src/
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd UsageCalc
+   git clone https://github.com/LukeR5776/UsageCalculator.git
+   cd UsageCalculator
    ```
 
 2. **Install dependencies**
