@@ -2,31 +2,109 @@ import React from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import type { EmissionResults, MonthlyData } from '../../types';
 
-const COLORS = {
-  electricity: '#eab308',
-  naturalGas: '#f97316', 
-  water: '#3b82f6'
-};
+/**
+ * Error boundary component for chart rendering
+ */
+class ChartErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
-interface EmissionsPieChartProps {
-  emissions: EmissionResults;
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('🚫 Chart rendering error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
 }
 
+/**
+ * Color constants for different emission sources in visualizations
+ * These colors maintain consistency across all chart components
+ */
+const COLORS = {
+  electricity: '#eab308', // Yellow for electricity
+  naturalGas: '#f97316',  // Orange for natural gas
+  water: '#3b82f6'        // Blue for water
+};
+
+/**
+ * Props for the EmissionsPieChart component
+ */
+interface EmissionsPieChartProps {
+  emissions: EmissionResults; // Emission data breakdown by source
+}
+
+/**
+ * EmissionsPieChart component renders a pie chart showing the breakdown of CO2 emissions by source
+ * Displays percentages and absolute values for electricity, natural gas, and water usage
+ *
+ * @param emissions - The emission results containing breakdown by source
+ * @returns JSX element containing the pie chart visualization
+ */
 export const EmissionsPieChart: React.FC<EmissionsPieChartProps> = ({ emissions }) => {
+  // Convert emissions from pounds to tons for better chart scaling
+  // Recharts works better with smaller, more reasonable numbers
+  const electricityTons = emissions.electricity / 1000;
+  const naturalGasTons = emissions.naturalGas / 1000;
+  const waterTons = emissions.water / 1000;
+  const totalTons = emissions.total / 1000;
+
+  // Transform emission data into format suitable for pie chart rendering (in tons)
   const data = [
-    { name: 'Electricity', value: emissions.electricity, color: COLORS.electricity },
-    { name: 'Natural Gas', value: emissions.naturalGas, color: COLORS.naturalGas },
-    { name: 'Water', value: emissions.water, color: COLORS.water },
+    { name: 'Electricity', value: electricityTons, color: COLORS.electricity },
+    { name: 'Natural Gas', value: naturalGasTons, color: COLORS.naturalGas },
+    { name: 'Water', value: waterTons, color: COLORS.water },
   ];
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  // TESTING: Hardcoded data to verify Recharts functionality
+  const testData = [
+    { name: 'Test A', value: 2, color: '#eab308' },
+    { name: 'Test B', value: 5, color: '#f97316' },
+    { name: 'Test C', value: 3, color: '#3b82f6' },
+  ];
+  console.log('🧪 TEST: Using hardcoded data for debugging:', testData);
+
+  // Debug logging for chart data
+  console.log('🥧 PieChart - Received emissions (lbs):', emissions);
+  console.log('🥧 PieChart - Converted to tons:', { electricityTons, naturalGasTons, waterTons, totalTons });
+  console.log('🥧 PieChart - Chart data:', data);
+  console.log('🥧 PieChart - Data values:', data.map(d => `${d.name}: ${d.value.toFixed(2)} tons`));
+  console.log('🥧 PieChart - Data structure check:', {
+    dataLength: data.length,
+    hasValidValues: data.every(d => d.value > 0 && !isNaN(d.value)),
+    dataKeysPresent: data.every(d => d.name && d.value !== undefined && d.color),
+    totalValue: data.reduce((sum, d) => sum + d.value, 0)
+  });
+
+  /**
+   * Custom tooltip component for the pie chart
+   * Shows detailed emission information when hovering over chart segments
+   *
+   * @param active - Whether the tooltip is currently active
+   * @param payload - Data payload from the chart segment
+   * @returns Formatted tooltip with emission values and percentages
+   */
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number }> }) => {
     if (active && payload && payload.length) {
       const data = payload[0];
       return (
         <div className="bg-white p-3 shadow-lg rounded-lg border">
           <p className="font-medium">{data.name}</p>
           <p className="text-sm text-gray-600">
-            {data.value.toFixed(1)} lbs CO₂ ({((data.value / emissions.total) * 100).toFixed(1)}%)
+            {data.value.toFixed(2)} tons CO₂ ({((data.value / totalTons) * 100).toFixed(1)}%)
           </p>
         </div>
       );
@@ -34,70 +112,157 @@ export const EmissionsPieChart: React.FC<EmissionsPieChartProps> = ({ emissions 
     return null;
   };
 
+  // Fallback component if chart fails to render
+  const ChartFallback = () => (
+    <div className="p-6 text-center border-2 border-dashed border-gray-300 rounded-lg">
+      <div className="text-4xl mb-4">⚠️</div>
+      <p className="text-gray-600 font-medium mb-2">Chart unavailable</p>
+      <p className="text-sm text-gray-500 mb-4">Displaying data in table format:</p>
+      <div className="text-left max-w-xs mx-auto">
+        {data.map((item, index) => (
+          <div key={index} className="flex justify-between py-1 border-b border-gray-200 last:border-b-0">
+            <span className="text-sm font-medium">{item.name}:</span>
+            <span className="text-sm">{item.value.toFixed(2)} tons CO₂ ({((item.value / totalTons) * 100).toFixed(1)}%)</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="card">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Emissions Breakdown</h3>
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              outerRadius={80}
-              dataKey="value"
-              label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(1)}%`}
-            >
-              {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip content={<CustomTooltip />} />
-          </PieChart>
-        </ResponsiveContainer>
+      <div className="h-64" style={{ border: '2px solid red', minHeight: '256px' }}>
+        <ChartErrorBoundary fallback={<ChartFallback />}>
+          {/* Responsive container ensures chart scales properly across devices */}
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={testData}
+                cx="50%" // Center horizontally
+                cy="50%" // Center vertically
+                outerRadius={80}
+                dataKey="value" // Use 'value' property for segment sizes
+                label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(1)}%`}
+              >
+                {/* Render each pie segment with its corresponding color */}
+                {testData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              {/* Custom tooltip shows detailed information on hover */}
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartErrorBoundary>
       </div>
     </div>
   );
 };
 
+/**
+ * Props for the EmissionsBarChart component
+ */
 interface EmissionsBarChartProps {
-  emissions: EmissionResults;
+  emissions: EmissionResults; // Emission data breakdown by source
 }
 
+/**
+ * EmissionsBarChart component renders a bar chart showing CO2 emissions by source
+ * Provides an alternative visualization to the pie chart for comparing emission sources
+ *
+ * @param emissions - The emission results containing breakdown by source
+ * @returns JSX element containing the bar chart visualization
+ */
 export const EmissionsBarChart: React.FC<EmissionsBarChartProps> = ({ emissions }) => {
+  // Convert emissions from pounds to tons for better chart scaling
+  const electricityTons = emissions.electricity / 1000;
+  const naturalGasTons = emissions.naturalGas / 1000;
+  const waterTons = emissions.water / 1000;
+
+  // Transform emission data into format suitable for bar chart rendering (in tons)
   const data = [
-    { category: 'Electricity', emissions: emissions.electricity, color: COLORS.electricity },
-    { category: 'Natural Gas', emissions: emissions.naturalGas, color: COLORS.naturalGas },
-    { category: 'Water', emissions: emissions.water, color: COLORS.water },
+    { category: 'Electricity', emissions: electricityTons, color: COLORS.electricity },
+    { category: 'Natural Gas', emissions: naturalGasTons, color: COLORS.naturalGas },
+    { category: 'Water', emissions: waterTons, color: COLORS.water },
   ];
+
+  // Debug logging for chart data
+  console.log('📊 BarChart - Received emissions (lbs):', emissions);
+  console.log('📊 BarChart - Converted to tons:', { electricityTons, naturalGasTons, waterTons });
+  console.log('📊 BarChart - Chart data:', data);
+  console.log('📊 BarChart - Data values:', data.map(d => `${d.category}: ${d.emissions.toFixed(2)} tons`));
+  console.log('📊 BarChart - Data structure check:', {
+    dataLength: data.length,
+    hasValidValues: data.every(d => d.emissions > 0 && !isNaN(d.emissions)),
+    dataKeysPresent: data.every(d => d.category && d.emissions !== undefined && d.color),
+    totalValue: data.reduce((sum, d) => sum + d.emissions, 0)
+  });
+
+  // Fallback component if chart fails to render
+  const ChartFallback = () => (
+    <div className="p-6 text-center border-2 border-dashed border-gray-300 rounded-lg">
+      <div className="text-4xl mb-4">⚠️</div>
+      <p className="text-gray-600 font-medium mb-2">Chart unavailable</p>
+      <p className="text-sm text-gray-500 mb-4">Displaying data in table format:</p>
+      <div className="text-left max-w-xs mx-auto">
+        {data.map((item, index) => (
+          <div key={index} className="flex justify-between py-1 border-b border-gray-200 last:border-b-0">
+            <span className="text-sm font-medium">{item.category}:</span>
+            <span className="text-sm">{item.emissions.toFixed(2)} tons CO₂</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="card">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Emissions by Source</h3>
       <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="category" />
-            <YAxis label={{ value: 'lbs CO₂', angle: -90, position: 'insideLeft' }} />
-            <Tooltip formatter={(value: number) => [`${value.toFixed(1)} lbs CO₂`, 'Emissions']} />
-            <Bar dataKey="emissions">
-              {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <ChartErrorBoundary fallback={<ChartFallback />}>
+          {/* Responsive container ensures chart scales properly across devices */}
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              {/* Grid lines for easier reading of values */}
+              <CartesianGrid strokeDasharray="3 3" />
+              {/* X-axis shows emission source categories */}
+              <XAxis dataKey="category" />
+              {/* Y-axis shows CO2 emission values with rotated label */}
+              <YAxis label={{ value: 'tons CO₂', angle: -90, position: 'insideLeft' }} />
+              {/* Tooltip shows formatted emission values on hover */}
+              <Tooltip formatter={(value: number) => [`${value.toFixed(2)} tons CO₂`, 'Emissions']} />
+              <Bar dataKey="emissions">
+                {/* Each bar colored according to emission source */}
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartErrorBoundary>
       </div>
     </div>
   );
 };
 
+/**
+ * Props for the MonthlyTrendChart component
+ */
 interface MonthlyTrendChartProps {
-  monthlyData: MonthlyData[];
+  monthlyData: MonthlyData[]; // Array of monthly emission data for trend analysis
 }
 
+/**
+ * MonthlyTrendChart component renders a line chart showing emission trends over time
+ * Displays total emissions and breakdown by source across multiple months
+ *
+ * @param monthlyData - Array of monthly emission data to visualize trends
+ * @returns JSX element containing the line chart or empty state message
+ */
 export const MonthlyTrendChart: React.FC<MonthlyTrendChartProps> = ({ monthlyData }) => {
+  // Transform monthly data into format suitable for line chart rendering
+  // Format month names as abbreviated month + year (e.g., "Jan 2024")
   const data = monthlyData.map(entry => ({
     month: `${entry.month.substring(0, 3)} ${entry.year}`,
     total: entry.emissions.total,
@@ -106,6 +271,7 @@ export const MonthlyTrendChart: React.FC<MonthlyTrendChartProps> = ({ monthlyDat
     water: entry.emissions.water,
   }));
 
+  // Show empty state when no monthly data is available
   if (data.length === 0) {
     return (
       <div className="card">
@@ -121,14 +287,22 @@ export const MonthlyTrendChart: React.FC<MonthlyTrendChartProps> = ({ monthlyDat
     <div className="card">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Trends</h3>
       <div className="h-64">
+        {/* Responsive container ensures chart scales properly across devices */}
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            {/* Grid lines for easier reading of trend values */}
             <CartesianGrid strokeDasharray="3 3" />
+            {/* X-axis shows month labels */}
             <XAxis dataKey="month" />
+            {/* Y-axis shows CO2 emission values with rotated label */}
             <YAxis label={{ value: 'lbs CO₂', angle: -90, position: 'insideLeft' }} />
+            {/* Tooltip shows formatted emission values on hover */}
             <Tooltip formatter={(value: number) => [`${value.toFixed(1)} lbs CO₂`, '']} />
+            {/* Legend shows line colors and labels */}
             <Legend />
+            {/* Total emissions line - thicker and green to emphasize overall trend */}
             <Line type="monotone" dataKey="total" stroke="#16a34a" strokeWidth={3} name="Total" />
+            {/* Individual source lines with consistent colors */}
             <Line type="monotone" dataKey="electricity" stroke={COLORS.electricity} strokeWidth={2} name="Electricity" />
             <Line type="monotone" dataKey="naturalGas" stroke={COLORS.naturalGas} strokeWidth={2} name="Natural Gas" />
             <Line type="monotone" dataKey="water" stroke={COLORS.water} strokeWidth={2} name="Water" />

@@ -1,7 +1,15 @@
 {
+  // Main TypeScript configuration file using "project references"
+  // This approach splits TypeScript configuration for better performance and organization
+
+  // No files specified here - all files are handled by the referenced configurations
   "files": [],
+
+  // Project references allow TypeScript to understand dependencies between different parts of the project
   "references": [
+    // Configuration for the main application code (React components, utilities, etc.)
     { "path": "./tsconfig.app.json" },
+    // Configuration for Node.js tooling (Vite config, build scripts, etc.)
     { "path": "./tsconfig.node.json" }
   ]
 }
