@@ -243,7 +243,7 @@ export const UsageInputForm: React.FC<UsageInputFormProps> = ({
           <div className="p-3 bg-primary-50 rounded-lg">
             <p className="text-sm text-primary-700">
               Estimated usage: <span className="font-semibold">
-                {estimatedUsage[utility]?.toLocaleString() || 0} {usageUnit || (formData[utility] as Record<string, string>).unit || ''}
+                {estimatedUsage[utility]?.toLocaleString() || 0} {usageUnit || ('unit' in formData[utility] ? (formData[utility] as any).unit : '')}
               </span>
             </p>
           </div>
@@ -266,7 +266,7 @@ export const UsageInputForm: React.FC<UsageInputFormProps> = ({
               {/* Unit selector dropdown for utilities with multiple units */}
               {unitOptions && (
                 <select
-                  value={(formData[utility] as Record<string, string>).unit || ''}
+                  value={'unit' in formData[utility] ? (formData[utility] as any).unit : ''}
                   onChange={(e) => updateFormData(utility, 'unit', e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                 >

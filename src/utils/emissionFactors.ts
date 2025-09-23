@@ -77,23 +77,20 @@ export function getEmissionFactor(type: 'water', unit: 'gallons' | 'cubic_feet')
 // Main function to get the appropriate emission factor based on utility type and location/unit
 export function getEmissionFactor(type: string, stateOrUnit?: string): number {
   switch (type) {
-    case 'electricity':
-      // For electricity, look up the state-specific emission factor
+    case 'electricity': {
       const state = stateOrUnit?.toUpperCase();
       return state && state in EMISSION_FACTORS.electricity.byState
         ? EMISSION_FACTORS.electricity.byState[state as keyof typeof EMISSION_FACTORS.electricity.byState]
-        : EMISSION_FACTORS.electricity.default;  // Use national average if state not found
+        : EMISSION_FACTORS.electricity.default;
+    }
 
     case 'naturalGas':
-      // For natural gas, look up the unit-specific emission factor
       return EMISSION_FACTORS.naturalGas[stateOrUnit as keyof typeof EMISSION_FACTORS.naturalGas] || EMISSION_FACTORS.naturalGas.therms;
 
     case 'water':
-      // For water, look up the unit-specific emission factor
       return EMISSION_FACTORS.water[stateOrUnit as keyof typeof EMISSION_FACTORS.water] || EMISSION_FACTORS.water.gallons;
 
     default:
-      // Unknown utility type - return 0 to avoid calculation errors
       return 0;
   }
 }

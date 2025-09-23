@@ -66,8 +66,7 @@ export async function getLocationData(zipCode: string): Promise<LocationData> {
 
     // Return the complete location data
     return locationData;
-  } catch (error) {
-    // If anything goes wrong, throw a user-friendly error message
+  } catch {
     throw new Error('Unable to fetch location data. Please check your zip code.');
   }
 }
